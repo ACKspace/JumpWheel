@@ -1,0 +1,362 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html lang="en-US" xml:lang="en-US" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+
+<title></title>
+
+<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1" />
+<meta name="Keywords" content="x,y" />
+
+<meta name="Description" content="x,y" />
+
+<meta http-equiv="pragma" content="no-cache" />
+<meta http-equiv="cache-control" content="no-cache" />
+<meta http-equiv="expires" content="-1" />
+<link rel="stylesheet" type="text/css" href="menu.css" />
+<style type="text/css" media="screen,all">
+body
+{
+    overflow: hidden;
+    margin: 0;
+}
+canvas
+{
+    /* Note that canvas size is set as attribute because it stretches the pixels here. What was w3c smoking? */
+    background-color: #ffe;
+}
+</style>
+<script type="text/javascript" src="Scene.js"></script>
+<script type="text/javascript" src="Player.js"></script>
+<script type="text/javascript" src="Wheel.js"></script>
+<script type="text/javascript" src="HUD.js"></script>
+<script type="text/javascript" src="Highscore.js"></script>
+<script type="text/javascript" src="InfoPane.js"></script>
+<script type="text/javascript">
+<!--
+
+
+
+// Autosize canvas
+window.onresize = function( _event )
+{
+    document.getElementById('canvas').width = window.innerWidth;
+    document.getElementById('canvas').height = window.innerHeight;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Globals
+var scene;
+var wheel;
+var players     = new Array();
+var infoPane    = new InfoPane();
+var hud         = new HUD();
+var highscore   = new Highscore();
+
+var availablePlayers = [];
+// Jump styles enum (lol)
+var JumpStyle = {
+    Stand: 0,
+    Brace: 1,
+    Jump:  2,
+    Tip:   3,
+    Fall:  4,
+    Land:  5,
+    Count: 6
+};
+
+var factor = 2;
+
+////////////////////////////////////////////////////////////////////////////////
+// Game initialization
+function initGame()
+{
+    // Quick n dirty
+    window.onresize();
+
+    var width = document.getElementById('canvas').width;
+    var height = document.getElementById('canvas').height;
+
+    wheel = new Wheel( "simon.png", 0.3, 0.85, 140 * factor, factor );
+
+    // Create the scene with everything in it
+    scene = new Scene( {
+        "horizon": 0.71,
+        "ground": 0.8,
+        "angle": 90,
+        "airColor": "#79c9f9",
+        "horizonColor": "#fefbfa",
+        "oceanColor": "#6992f2",
+        "groundColor": "#7fad71",
+        "waterInFront": false,
+        "relativeHeight": 1000,
+        "relativeWidth": 1600,
+        "canvasWidth": width,
+        "canvasHeight": height,
+        "horizonItems": [
+          { "img": "horizon.png", "tile": true, "x": false, "y": 0.71, "fixed": false },
+          { "img": "sunset_horizon.png", "tile": false, "x": 0.79999, "y": 0.71, "fixed": false },
+          { "img": "sky_gradient.png", "tile": true, "x": false, "y": -0.71, "fixed": true },
+          { "img": "space1.png", "tile": false, "x": 3000, "y": -0.1, "fixed": false, "width": 348, "height": 32 }
+        ],
+        "cloudsBack": ["cloud1.png", "cloud2.png", "cloud3.png", "cloud4.png", "cloud5.png", "cloud6.png"],
+        "cloudsFront": ["cloud1.png", "cloud2.png", "cloud3.png", "cloud4.png", "cloud5.png", "cloud6.png"],
+        "distantItems": [
+          { "img": "frogger_log.png", "tile": false, "x": 0.8, "y": -0.77, "fixed": false },
+          { "img": "frogger_seagul_l.png", "tile": false, "x": 3500, "y": -0.77, "fixed": false },
+          { "img": "space2.png", "tile": false, "x": 5000, "y": -0.15, "fixed": false, "width": 348, "height": 32 }
+        ],
+        "sceneryItems": [
+          { "img": "tree.png", "tile": false, "x":0.4, "y": -0.8, "fixed": false, "width": 195, "height": 392 },
+          { "img": "tree.png", "tile": false, "x":3700, "y": -0.8, "fixed": false, "width": 195, "height": 392 },
+          { "img": "grass-hill.png", "tile": false, "x":5000, "y": -0.81, "fixed": false, "width": 360, "height": 177 },
+          { "img": "bush.png", "tile": false, "x":6000, "y": -0.81, "fixed": false, "width": 90, "height": 95 },
+          { "img": "bush.png", "tile": false, "x":7000, "y": -0.81, "fixed": false, "width": 90, "height": 95 },
+          { "img": "smbpipe.png", "tile": false, "x": 8000, "y": -0.8, "fixed": false, "width": 47, "height": 96 },
+          { "img": "space3.png", "tile": false, "x": 13000, "y": -0.2, "fixed": false, "width": 348, "height": 32 }
+        ],
+        "backgroundItems": [
+          { "img": "grass_a.png", "tile": true, "x": false, "y": 0.77, "fixed": false },
+          { "img": "flagpole.png", "tile": false, "x":0.4, "y": -0.8, "fixed": false, "width": 13, "height": 215 }, // start
+          { "img": "flagpole.png", "tile": false, "x":18600, "y": -0.8, "fixed": false, "width": 13, "height": 215 },  // finish
+          { "img": "wrong_way.png", "tile": false, "x": -230, "y": 0.50, "fixed": false },
+          { "img": "go_back.png", "tile": false, "x": -1400, "y": 0.50, "fixed": false },
+          { "img": "tree2.png", "tile": false, "x":5000, "y": -0.83, "fixed": false, "width": 220, "height": 450 },
+          { "img": "pinky.png", "tile": false, "x":17000, "y": -0.81, "fixed": false, "width": 80, "height": 80 },
+          { "img": "clyde.png", "tile": false, "x":16000, "y": -0.81, "fixed": false, "width": 80, "height": 80 },
+          { "img": "earthworm-jim.png", "tile": false, "x":3600, "y": -0.81, "fixed": false, "width": 74, "height": 102 },
+          { "img": "space4.png", "tile": false, "x": 19000, "y": -0.25, "fixed": false, "width": 348, "height": 32 }
+
+        ],
+        "foregroundItems": [
+          { "img": "flagpole.png", "tile": false, "x":0.3, "y": -0.96, "fixed": false, "width": 26, "height": 430 }, // start
+          { "img": "flagpole.png", "tile": false, "x":22500, "y": -0.96, "fixed": false, "width": 26, "height": 430 }, // finish
+          { "img": "smbpipe.png", "tile": false, "x": 0.8, "y": -0.98, "fixed": false, "width": 96, "height": 192 },
+          { "img": "dog.png", "tile": false, "x":9500, "y": -0.94, "fixed": false, "width": 124, "height": 107 },
+          { "img": "blinky.png", "tile": false, "x":18500, "y": -0.86, "fixed": false, "width": 96, "height": 96 },
+          { "img": "inky.png", "tile": false, "x":20000, "y": -0.86, "fixed": false, "width": 96, "height": 96 },
+          { "img": "cgart035.jpg", "tile": false, "x": -10000, "y": 0, "fixed": false },
+          { "img": "space5.png", "tile": false, "x": 23000, "y": -0.3, "fixed": false, "width": 348, "height": 32 }
+        ],
+        "frontItems": [
+          //{ "img": "flagpole.png", "tile": false, "x":0.3, "y": -0.96, "fixed": false, "width": 26, "height": 430 }, // front start
+          //{ "img": "flagpole.png", "tile": false, "x":50400, "y": -0.96, "fixed": false, "width": 26, "height": 430 }, // front finish
+
+          { "img": "flagpole.png", "tile": false, "x":13000, "y": 0.86, "fixed": false, "width": 26, "height": 430 },  // start
+          { "img": "flagpole.png", "tile": false, "x":25200, "y": 0.86, "fixed": false, "width": 26, "height": 430 },  // start
+          { "img": "flagpole.png", "tile": false, "x":37800, "y": 0.86, "fixed": false, "width": 26, "height": 430 }, // finish
+          { "img": "smbsolidbrick.png", "tile": true, "x":false, "y": 0.93, "fixed": false, "width": 48, "height": 48 },
+          { "img": "tree.png", "tile": false, "x":37000, "y": -0.9999999999, "fixed": false, "width": 390, "height": 785 },
+        ]
+    } );
+
+    // Active Players here
+    players.push( availablePlayers[0].clone( ));
+    players.push( availablePlayers[5].clone( ));
+    players.push( availablePlayers[2].clone( ));
+    players.push( availablePlayers[6].clone( ));
+
+    // Fetch storage data, if applicable
+    highscore.addTeam( "ACKers", players );
+
+    // Set all class information on the HUD
+    hud.setData( scene, wheel, players, highscore );
+}
+
+function init()
+{
+    // Available Players with their frame order here
+    availablePlayers.push( new Player( 'keen.png', [ 1, 1, 2, 3, 4, 4, 4 ], "Commander Keen", factor ) );
+    availablePlayers.push( new Player( 'duke.png', [ 1, 2, 3, 4, 5, 5, 5 ], "Duke Nukem", factor ) );
+    availablePlayers.push( new Player( 'link.png', [ 1, 1, 2, 2, 3, 3, 3 ], "Link", factor ) );
+    availablePlayers.push( new Player( 'worm.png', [ 1, 2, 3, 3, 4, 4, 4 ], "Worm", factor ) );
+    availablePlayers.push( new Player( 'lemming.png', [ 1, 2, 3, 4, 5, 6, 6 ], "Lemming", factor ) );
+    availablePlayers.push( new Player( 'mario.png', [ 1, 2, 3, 3, 4, 4, 4 ], "Mario", factor ) );
+    availablePlayers.push( new Player( 'sonic.png', [ 1, 2, 3, 4, 5, 6, 6 ], "Sonic", factor ) );
+
+    initGame();
+
+    // Debug/development
+    document.getElementById('canvas').onmousemove = function( _event )
+    {
+        if ( !_event.altKey )
+            return;
+
+        wheel.rotation = (_event.pageX / document.getElementById('canvas').width * 50000 / wheel.radius) - 20;
+    }
+    document.getElementById('canvas').onclick = function( _event )
+    {
+        //console.log( _event );
+
+        // Determine player id, if hit
+        // Used for setting name
+
+        // Bottom right corner is reset/clear
+        if ( _event.clientX >= document.getElementById('canvas').width - 15 &&
+             _event.clientY >= document.getElementById('canvas').height - 15 )
+        {
+            if ( _event.ctrlKey && _event.shiftKey )
+            {
+                if ( highscore.clear() )
+                    infoPane.setInfo( "all systems clear!", true );
+            } else {
+                infoPane.setInfo( "Resetting players..", true );
+                players = [];
+                initGame();
+                return;
+            }
+        }
+
+        for ( var idx = 0; idx < players.length; idx++)
+        {
+            players[idx].jump();
+        }
+
+    }
+    document.onkeydown = function( _event )
+    {
+        if ( _event.keyCode === 39 )
+          location.reload()
+        
+        if ( !scene.startTime )
+        {
+            highscore.start();
+            scene.startTime = new Date();
+        }
+
+        // Cheat
+        if ( _event.keyCode === 39 )
+            wheel.cheat = _event.shiftKey ? 0.1 : 0.001;
+        if ( _event.keyCode === 37 )
+            wheel.cheat = _event.shiftKey ? -0.1 : -0.001;
+
+
+        if ( _event.ctrlKey )
+        {
+            var name;
+            if ( _event.keyCode === 32 )
+            {
+                name = prompt( "Enter group name", highscore.scores[ highscore.scores.length - 1 ].groupName );
+                if ( name )
+                {
+                    highscore.scores[ highscore.scores.length - 1 ].groupName = name;
+                    //highscore.save();
+                }
+            }
+
+            if ( _event.keyCode >= 49 &&
+                _event.keyCode - players.length <= 48 )
+            {
+                name = prompt( "Enter name for player " + ( _event.keyCode - 48), highscore.scores[ highscore.scores.length - 1 ].players[_event.keyCode - 49].name );
+                if ( name )
+                {
+                    highscore.scores[ highscore.scores.length - 1 ].groupName = name;
+                    highscore.save();
+                }
+
+                _event.stopPropagation();
+                return false;
+            }
+
+        }
+
+
+        // Keys 1..n (number of players)
+        if ( _event.keyCode < 49 )
+            return;
+
+        if ( _event.keyCode - players.length > 48 )
+            return;
+
+        players[ _event.keyCode - 49 ].jump();
+
+        /*
+        for ( var idx = 0; idx < players.length; idx++)
+        {
+            players[idx].jump();
+        }
+        */
+    };
+
+    document.onkeyup = function( _event )
+    {
+        // Cheat
+        if ( _event.keyCode )
+            wheel.cheat = 0;
+    };
+
+
+    // Redraw interval
+    //setInterval( "draw();", 30 );
+    setInterval( "draw();", 30 );
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// The render event
+function draw()
+{
+    var ctx = document.getElementById('canvas').getContext('2d');
+    
+    // Calculate
+    wheel.tick( );
+
+    if ( wheel.rotation < -101 )
+    {
+        wheel.rotation = -101;
+        wheel.speed = 0;
+    }
+
+    var pos = wheel.getPosition();
+
+    if ( pos > scene.maxPosition )
+    {
+        wheel.resistance *= 0.99;
+        
+        // Trigger finish
+        if ( !scene.finished )
+        {
+            scene.setFinished( true );
+            highscore.finish();
+            infoPane.setInfo( highscore.toString() );
+        }
+    }
+
+    scene.setPosition( pos );
+
+    hud.tick( scene, wheel, players, highscore );
+
+    // Background
+    scene.draw( ctx, false );
+
+    // The big wheel with all its players over here
+    wheel.draw( ctx );
+
+    // Foreground
+    scene.draw( ctx, true );
+
+    // Heads-up display
+    hud.draw( ctx );
+
+    infoPane.tick( );
+    infoPane.draw( ctx );
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Debug logging
+function log( _msg )
+{
+    document.getElementById("log").innerHTML += _msg + "<br/>\n";
+};
+//-->
+</script>
+
+</head>
+
+<body onload="init();">
+<canvas id="canvas" width="500" height="500"></canvas>
+</body>
+</html>
