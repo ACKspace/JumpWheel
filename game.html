@@ -216,7 +216,8 @@ function init()
     }
     document.onkeydown = function( _event )
     {
-        if ( _event.keyCode === 53 )
+        // Keys 1 to n let the player jump, n + 1 is game reset
+        if ( _event.keyCode === ( 49 + players.length ) )
           location.reload()
         
         if ( !scene.startTime )
